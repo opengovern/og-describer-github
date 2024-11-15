@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 	"strings"
 
 	"github.com/shurcooL/githubv4"
@@ -19,7 +20,7 @@ func tableGitHubUser() *plugin.Table {
 		List: &plugin.ListConfig{
 			KeyColumns:        plugin.SingleColumn("login"),
 			ShouldIgnoreError: isNotFoundError([]string{"404"}),
-			Hydrate:           tableGitHubUserGet,
+			Hydrate:           opengovernance.ListUser,
 		},
 		Columns: commonColumns(tableGitHubUserColumns()),
 	}

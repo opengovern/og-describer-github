@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 
 	"github.com/shurcooL/githubv4"
 	"github.com/turbot/steampipe-plugin-github/github/models"
@@ -14,7 +15,7 @@ func tableGitHubMyTeam() *plugin.Table {
 		Name:        "github_my_team",
 		Description: "GitHub Teams that you belong to in your organization. GitHub Teams are groups of organization members that reflect your company or group's structure with cascading access permissions and mentions.",
 		List: &plugin.ListConfig{
-			Hydrate: tableGitHubMyTeamList,
+			Hydrate: opengovernance.ListTeam,
 		},
 		Get: &plugin.GetConfig{
 			KeyColumns:        plugin.AllColumns([]string{"organization", "slug"}),

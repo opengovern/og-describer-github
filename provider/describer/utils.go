@@ -20,6 +20,12 @@ const (
 	teamMembersPageSize      = 50
 )
 
+// GitHubClient custom struct for defining both rest and graphql clients
+type GitHubClient struct {
+	RestClient    *github.Client
+	GraphQLClient *githubv4.Client
+}
+
 func appendRepoColumnIncludes(m *map[string]interface{}, cols []string) {
 	optionals := map[string]string{
 		"allow_update_branch":              "includeAllowUpdateBranch",

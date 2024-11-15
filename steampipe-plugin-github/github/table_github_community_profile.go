@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 
 	"github.com/shurcooL/githubv4"
 	"github.com/turbot/steampipe-plugin-github/github/models"
@@ -16,7 +17,7 @@ func tableGitHubCommunityProfile() *plugin.Table {
 		Description: "Community profile information for the given repository.",
 		List: &plugin.ListConfig{
 			KeyColumns:        plugin.SingleColumn("repository_full_name"),
-			Hydrate:           tableGitHubCommunityProfileList,
+			Hydrate:           opengovernance.ListCommunityProfile,
 			ShouldIgnoreError: isNotFoundError([]string{"404"}),
 		},
 		Columns: commonColumns([]*plugin.Column{

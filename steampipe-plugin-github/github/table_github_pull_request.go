@@ -3,7 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
-
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 	"github.com/shurcooL/githubv4"
 	"github.com/turbot/steampipe-plugin-github/github/models"
 	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
@@ -101,12 +101,12 @@ func tableGitHubPullRequest() *plugin.Table {
 				{Name: "state", Require: plugin.Optional},
 			},
 			ShouldIgnoreError: isNotFoundError([]string{"404"}),
-			Hydrate:           tableGitHubPullRequestList,
+			Hydrate:           opengovernance.ListPullRequest,
 		},
 		Get: &plugin.GetConfig{
 			KeyColumns:        plugin.AllColumns([]string{"repository_full_name", "number"}),
 			ShouldIgnoreError: isNotFoundError([]string{"404"}),
-			Hydrate:           tableGitHubPullRequestGet,
+			Hydrate:           opengovernance.GetPullRequest,
 		},
 		Columns: commonColumns(gitHubPullRequestColumns()),
 	}
