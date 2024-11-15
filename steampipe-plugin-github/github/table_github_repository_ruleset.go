@@ -2,13 +2,13 @@ package github
 
 import (
 	"context"
-	"time"
-
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 	"github.com/shurcooL/githubv4"
 	"github.com/turbot/steampipe-plugin-github/github/models"
 	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
 	"github.com/turbot/steampipe-plugin-sdk/v5/plugin"
 	"github.com/turbot/steampipe-plugin-sdk/v5/plugin/transform"
+	"time"
 )
 
 func tableGitHubRepositoryRuleset() *plugin.Table {
@@ -16,7 +16,7 @@ func tableGitHubRepositoryRuleset() *plugin.Table {
 		Name:        "github_repository_ruleset",
 		Description: "Retrieve the rulesets of a specified GitHub repository.",
 		List: &plugin.ListConfig{
-			Hydrate: tableGitHubRepositoryRulesetList,
+			Hydrate: opengovernance.ListRepoRuleSet,
 			KeyColumns: []*plugin.KeyColumn{
 				{Name: "repository_full_name", Require: plugin.Required},
 			},

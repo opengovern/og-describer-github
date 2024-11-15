@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 
 	"github.com/shurcooL/githubv4"
 	"github.com/turbot/steampipe-plugin-github/github/models"
@@ -31,7 +32,7 @@ func tableGitHubRepositoryEnvironment() *plugin.Table {
 				},
 			},
 			ShouldIgnoreError: isNotFoundError([]string{"404"}),
-			Hydrate:           tableGitHubRepositoryEnvironmentList,
+			Hydrate:           opengovernance.ListRepoEnvironment,
 		},
 		Columns: commonColumns(gitHubRepositoryEnvironmentColumns()),
 	}

@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 
 	"github.com/google/go-github/v55/github"
 
@@ -17,7 +18,7 @@ func tableGitHubTrafficViewWeekly() *plugin.Table {
 		List: &plugin.ListConfig{
 			KeyColumns:        plugin.SingleColumn("repository_full_name"),
 			ShouldIgnoreError: isNotFoundError([]string{"404"}),
-			Hydrate:           tableGitHubTrafficViewWeeklyList,
+			Hydrate:           opengovernance.ListTrafficViewWeekly,
 		},
 		Columns: commonColumns([]*plugin.Column{
 			// Top columns

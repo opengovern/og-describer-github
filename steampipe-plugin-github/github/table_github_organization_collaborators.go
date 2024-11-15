@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 	"strings"
 
 	"github.com/turbot/steampipe-plugin-github/github/models"
@@ -53,7 +54,7 @@ func tableGitHubOrganizationCollaborator() *plugin.Table {
 					CacheMatch: "exact",
 				},
 			},
-			Hydrate: listGitHubOrganizationCollaborators,
+			Hydrate: opengovernance.ListOrgCollaborators,
 		},
 		Columns: commonColumns(gitHubOrganizationCollaborators()),
 	}
@@ -81,7 +82,7 @@ func listGitHubOrganizationCollaborators(ctx context.Context, d *plugin.QueryDat
 	}
 
 	// We are encountering the secondary rate limit when making API calls with a page size of 100 for large-scale datasets.
-        // Reducing the page size to fetch smaller data amounts per page could be beneficial.
+	// Reducing the page size to fetch smaller data amounts per page could be beneficial.
 	pageSize := adjustPageSize(50, d.QueryContext.Limit)
 
 	var query struct {

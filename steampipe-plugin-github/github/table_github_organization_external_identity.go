@@ -2,7 +2,7 @@ package github
 
 import (
 	"context"
-
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 	"github.com/shurcooL/githubv4"
 	"github.com/turbot/steampipe-plugin-github/github/models"
 	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
@@ -33,7 +33,7 @@ func tableGitHubOrganizationExternalIdentity() *plugin.Table {
 					Require: plugin.Required,
 				},
 			},
-			Hydrate: tableGitHubOrganizationExternalIdentityList,
+			Hydrate: opengovernance.ListOrgExternalIdentity,
 		},
 		Columns: commonColumns(gitHubOrganizationExternalIdentityColumns()),
 	}

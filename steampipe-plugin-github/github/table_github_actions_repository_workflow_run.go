@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 
 	"github.com/google/go-github/v55/github"
 	"github.com/turbot/steampipe-plugin-sdk/v5/grpc/proto"
@@ -15,7 +16,7 @@ func tableGitHubActionsRepositoryWorkflowRun() *plugin.Table {
 		Description: "WorkflowRun represents a repository action workflow run",
 		List: &plugin.ListConfig{
 			ShouldIgnoreError: isNotFoundError([]string{"404"}),
-			Hydrate:           tableGitHubRepoWorkflowRunList,
+			Hydrate:           opengovernance.ListWorkflowRun,
 			KeyColumns: []*plugin.KeyColumn{
 				{Name: "repository_full_name", Require: plugin.Required},
 				{Name: "event", Require: plugin.Optional},
@@ -27,7 +28,7 @@ func tableGitHubActionsRepositoryWorkflowRun() *plugin.Table {
 		Get: &plugin.GetConfig{
 			KeyColumns:        plugin.AllColumns([]string{"repository_full_name", "id"}),
 			ShouldIgnoreError: isNotFoundError([]string{"404"}),
-			Hydrate:           tableGitHubRepoWorkflowRunGet,
+			Hydrate:           opengovernance.GetWorkflowRun,
 		},
 		Columns: commonColumns([]*plugin.Column{
 			// Top columns

@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	opengovernance "github.com/opengovern/og-describer-github/pkg/sdk/es"
 	"time"
 
 	"github.com/google/go-github/v55/github"
@@ -23,7 +24,7 @@ func tableGitHubAuditLog() *plugin.Table {
 				{Name: "actor", Require: plugin.Optional},
 				{Name: "created_at", Require: plugin.Optional, Operators: []string{">", ">=", "<", "<=", "="}},
 			},
-			Hydrate: tableGitHubAuditLogList,
+			Hydrate: opengovernance.ListAuditLog,
 		},
 		Columns: commonColumns([]*plugin.Column{
 			{Name: "organization", Type: proto.ColumnType_STRING, Transform: transform.FromQual("organization"), Description: "The GitHub organization."},
