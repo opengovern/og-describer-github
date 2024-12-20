@@ -90,8 +90,8 @@
         "Commit"
       ]
     },
-    "ListDescriber": "DescribeByGithub(describer.GetAllCommits)",
-    "GetDescriber": "DescribeSingleByRepo(describer.GetRepositoryCommit)",
+    "ListDescriber": "DescribeByGithub(describer.ListCommits)",
+    "GetDescriber": "",
     "SteampipeTable": "github_commit",
     "Model": "Commit"
   },
@@ -211,7 +211,7 @@
       ]
     },
     "ListDescriber": "DescribeByGithub(describer.GetRepositoryList)",
-    "GetDescriber": "DescribeSingleByRepo(describer.GetRepository)",
+    "GetDescriber": "",
     "SteampipeTable": "github_repository",
     "Model": "Repository"
   },

@@ -135,10 +135,54 @@ type BranchProtectionDescription struct {
 }
 
 type CommitDescription struct {
-	steampipemodels.Commit
-	RepoFullName   string
-	AuthorLogin    string
-	CommitterLogin string
+	AdditionalDetails struct {
+		NodeID  string `json:"node_id"`
+		Parents []struct {
+			SHA string `json:"sha"`
+		} `json:"parents"`
+		Tree struct {
+			SHA string `json:"sha"`
+		} `json:"tree"`
+		VerificationDetails struct {
+			Reason     string  `json:"reason"`
+			Signature  *string `json:"signature"`
+			VerifiedAt *string `json:"verified_at"`
+		} `json:"verification_details"`
+	} `json:"additional_details"`
+	Author struct {
+		Email   string `json:"email"`
+		HTMLURL string `json:"html_url"`
+		ID      int    `json:"id"`
+		Login   string `json:"login"`
+		Name    string `json:"name"`
+		NodeID  string `json:"node_id"`
+		Type    string `json:"type"`
+	} `json:"author"`
+	Changes struct {
+		Additions int `json:"additions"`
+		Deletions int `json:"deletions"`
+		Total     int `json:"total"`
+	} `json:"changes"`
+	CommentCount int    `json:"comment_count"`
+	Date         string `json:"date"`
+	Files        []struct {
+		Additions int    `json:"additions"`
+		Changes   int    `json:"changes"`
+		Deletions int    `json:"deletions"`
+		Filename  string `json:"filename"`
+		SHA       string `json:"sha"`
+		Status    string `json:"status"`
+	} `json:"files"`
+	HTMLURL      string `json:"html_url"`
+	ID           string `json:"id"`
+	IsVerified   bool   `json:"is_verified"`
+	Message      string `json:"message"`
+	PullRequests []int  `json:"pull_requests"`
+	Target       struct {
+		Branch       string `json:"branch"`
+		Organization string `json:"organization"`
+		Repository   string `json:"repository"`
+	} `json:"target"`
 }
 
 type GitIgnoreDescription struct {
@@ -732,7 +776,7 @@ type TeamMembersDescription struct {
 }
 
 type TeamRepositoryDescription struct {
-	RepositoryDescription
+	RepoDescription
 	Organization string
 	Slug         string
 	Permission   githubv4.RepositoryPermission
@@ -810,20 +854,20 @@ type CodeOwnerDescription struct {
 	LineComment        string
 }
 
-type Owner struct {
+type OwnerLogin struct {
 	Login string `json:"login"`
 }
 
 type Package struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	PackageType string `json:"package_type"`
-	Visibility  string `json:"visibility"`
-	HTMLURL     string `json:"html_url"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
-	Owner       Owner  `json:"owner"`
-	URL         string `json:"url"`
+	ID          int        `json:"id"`
+	Name        string     `json:"name"`
+	PackageType string     `json:"package_type"`
+	Visibility  string     `json:"visibility"`
+	HTMLURL     string     `json:"html_url"`
+	CreatedAt   string     `json:"created_at"`
+	UpdatedAt   string     `json:"updated_at"`
+	Owner       OwnerLogin `json:"owner"`
+	URL         string     `json:"url"`
 }
 
 type ContainerMetadata struct {
