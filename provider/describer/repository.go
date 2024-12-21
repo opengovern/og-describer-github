@@ -16,7 +16,7 @@ import (
 )
 
 // MAX_REPO as requested
-const MAX_REPO = 250
+const MAX_REPOS_TO_LIST = 250
 
 // GetRepositoryList returns a list of all active (non-archived, non-disabled) repos in the organization.
 // By default, no excludes are applied, so this returns only active repositories.
@@ -26,14 +26,13 @@ func GetRepositoryList(
 	organizationName string,
 	stream *models.StreamSender,
 ) ([]models.Resource, error) {
-	// Call the helper with default options (no excludes)
+	// Just call GetRepositoryListWithOptions with no excludes
 	return GetRepositoryListWithOptions(ctx, githubClient, organizationName, stream, false, false)
 }
 
-// GetRepositoryListWithOptions returns a list of all active repos in the organization with options to exclude archived or disabled.
-// It paginates through the results up to MAX_REPO and does minimal processing: it only extracts 'id' and 'name' fields.
-// Instead of marshaling into JSON bytes, we store the map[string]interface{} directly in Resource.Description.Value,
-// so the streaming code won't break when it re-encodes that data.
+// GetRepositoryListWithOptions returns a list of all active repos in the organization with options
+// to exclude archived or disabled. It paginates through the results up to MAX_REPO, then
+// places the entire repository JSON as a map[string]interface{} in Resource.Description.Value.
 func GetRepositoryListWithOptions(
 	ctx context.Context,
 	githubClient GitHubClient,
@@ -54,7 +53,7 @@ func GetRepositoryListWithOptions(
 	perPage := 100
 	page := 1
 
-	for len(allResources) < MAX_REPO {
+	for len(allResources) < MAX_REPOS_TO_LIST {
 		endpoint := fmt.Sprintf("/orgs/%s/repos?per_page=%d&page=%d", organizationName, perPage, page)
 		req := &resilientbridge.NormalizedRequest{
 			Method:   "GET",
@@ -70,7 +69,7 @@ func GetRepositoryListWithOptions(
 			return nil, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(resp.Data))
 		}
 
-		// Decode into a slice of generic maps to extract 'id', 'name', etc.
+		// Unmarshal into a slice of map[string]interface{} (the raw GitHub JSON for each repo)
 		var repos []map[string]interface{}
 		if err := json.Unmarshal(resp.Data, &repos); err != nil {
 			return nil, fmt.Errorf("error decoding repos list: %w", err)
@@ -80,7 +79,7 @@ func GetRepositoryListWithOptions(
 		}
 
 		for _, r := range repos {
-			// Apply filters
+			// Filters
 			if excludeArchived {
 				if archived, ok := r["archived"].(bool); ok && archived {
 					continue
@@ -92,27 +91,26 @@ func GetRepositoryListWithOptions(
 				}
 			}
 
+			// Extract basic info for Resource ID + Name
 			var idStr string
 			if idVal, ok := r["id"]; ok {
 				idStr = fmt.Sprintf("%v", idVal)
 			}
-
 			var nameStr string
 			if nameVal, ok := r["name"].(string); ok {
 				nameStr = nameVal
 			}
 
-			// Instead of marshalling to []byte, we store the map object directly in Value
-			// This prevents "cannot unmarshal string into Go value of type map[string]interface{}"
+			// Put the entire map in Resource.Description.Value
 			resource := models.Resource{
 				ID:   idStr,
 				Name: nameStr,
 				Description: JSONAllFieldsMarshaller{
-					Value: r, // store the entire map
+					Value: r, // store the entire map, not bytes
 				},
 			}
 
-			// Stream the resource if possible
+			// Stream if needed
 			if stream != nil {
 				if err := (*stream)(resource); err != nil {
 					return nil, fmt.Errorf("streaming resource failed: %w", err)
@@ -120,12 +118,13 @@ func GetRepositoryListWithOptions(
 			}
 
 			allResources = append(allResources, resource)
-			if len(allResources) >= MAX_REPO {
+			if len(allResources) >= MAX_REPOS_TO_LIST {
 				break
 			}
 		}
 
 		if len(repos) < perPage {
+			// no more pages
 			break
 		}
 		page++
@@ -134,9 +133,10 @@ func GetRepositoryListWithOptions(
 	return allResources, nil
 }
 
-// GetRepository returns details for a given repo: fetches from GitHub, transforms it,
-// fetches languages, enriches metrics, and returns a single Resource. If a stream is provided,
-// it also streams the resource. This function is fully independent of GetRepositoryListWithOptions.
+// GetRepository returns details for a given repo. It fetches from GitHub, transforms into
+// model.RepositoryDescription, fetches languages, enriches metrics, then returns a single Resource.
+// We store the final struct (not a string) in Resource.Description.Value, so downstream code can
+// re-marshal it as needed.
 func GetRepository(
 	ctx context.Context,
 	githubClient GitHubClient,
@@ -153,39 +153,39 @@ func GetRepository(
 		BaseBackoff:       0,
 	})
 
-	// Fetch the single repo's details
+	// 1) Fetch a single repo's details
 	repoDetail, err := util_fetchRepoDetails(sdk, organizationName, repositoryName)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching repository details for %s/%s: %w",
 			organizationName, repositoryName, err)
 	}
 
-	// Transform into final structure
+	// 2) Transform to final structure
 	finalDetail := util_transformToFinalRepoDetail(repoDetail)
 
-	// Fetch repository languages
+	// 3) Fetch repository languages
 	langs, err := util_fetchLanguages(sdk, organizationName, repositoryName)
 	if err == nil && len(langs) > 0 {
 		finalDetail.Languages = langs
 	}
 
-	// Enrich with metrics (commits, issues, branches, PRs, releases, tags)
+	// 4) Enrich repository with metrics
 	if err := util_enrichRepoMetrics(sdk, organizationName, repositoryName, finalDetail); err != nil {
 		log.Printf("Error enriching repo metrics for %s/%s: %v",
 			organizationName, repositoryName, err)
 	}
 
-	// Build final Resource
+	// 5) Build the final Resource
 	value := models.Resource{
 		ID:   strconv.Itoa(finalDetail.GitHubRepoID),
 		Name: finalDetail.Name,
 		Description: JSONAllFieldsMarshaller{
-			// Storing the struct directly, not as raw JSON bytes
+			// Store the final struct (model.RepositoryDescription) directly
 			Value: finalDetail,
 		},
 	}
 
-	// (Optional) Print to terminal
+	// Print to terminal, as in your original example
 	fmt.Println(value)
 
 	// Stream if provided
@@ -198,16 +198,12 @@ func GetRepository(
 	return &value, nil
 }
 
-// ----------------------------------------------------------------------------
-// All utility/helper functions now have the prefix "util_"
-// ----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// All utility / helper functions now prefixed `util_` and remain otherwise
+// the same. They can go into the same file or a separate `util.go` file.
+// -----------------------------------------------------------------------------
 
-// util_fetchRepoDetails fetches a single repository's details from GitHub.
-func util_fetchRepoDetails(
-	sdk *resilientbridge.ResilientBridge,
-	owner, repo string,
-) (*model.RepoDetail, error) {
-
+func util_fetchRepoDetails(sdk *resilientbridge.ResilientBridge, owner, repo string) (*model.RepoDetail, error) {
 	req := &resilientbridge.NormalizedRequest{
 		Method:   "GET",
 		Endpoint: fmt.Sprintf("/repos/%s/%s", owner, repo),
