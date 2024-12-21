@@ -18,19 +18,19 @@ import (
 // MAX_REPOS_TO_LIST is how many repositories to fetch at most when listing.
 const MAX_REPOS_TO_LIST = 250
 
-// GetRepositoryList returns a list of all repos in the organization.
+// GetRepositoryList calls GetRepositoryListWithOptions with default excludes (false, false).
 func GetRepositoryList(
 	ctx context.Context,
 	githubClient GitHubClient,
 	organizationName string,
 	stream *models.StreamSender,
 ) ([]models.Resource, error) {
-	// Just call GetRepositoryListWithOptions with no excludes
 	return GetRepositoryListWithOptions(ctx, githubClient, organizationName, stream, false, false)
 }
 
-// GetRepositoryListWithOptions fetches org repositories up to MAX_REPOS_TO_LIST, optionally excluding archived/disabled.
-// The entire JSON for each repository is stored in Resource.Description.Value as a map[string]interface{}.
+// GetRepositoryListWithOptions enumerates org repositories, but *instead of streaming each raw JSON*,
+// it calls GetRepository(...) for each repo, so that *only the final detail* from GetRepository is
+// streamed and returned.
 func GetRepositoryListWithOptions(
 	ctx context.Context,
 	githubClient GitHubClient,
@@ -47,11 +47,11 @@ func GetRepositoryListWithOptions(
 		BaseBackoff:       0,
 	})
 
-	var allResources []models.Resource
+	var allFinalResources []models.Resource
 	perPage := 100
 	page := 1
 
-	for len(allResources) < MAX_REPOS_TO_LIST {
+	for len(allFinalResources) < MAX_REPOS_TO_LIST {
 		endpoint := fmt.Sprintf("/orgs/%s/repos?per_page=%d&page=%d", organizationName, perPage, page)
 		req := &resilientbridge.NormalizedRequest{
 			Method:   "GET",
@@ -67,7 +67,7 @@ func GetRepositoryListWithOptions(
 			return nil, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(resp.Data))
 		}
 
-		// Decode into a slice of map[string]interface{} (the raw JSON).
+		// Decode into a slice of generic maps. We'll only parse name, archived, disabled, etc.
 		var repos []map[string]interface{}
 		if err := json.Unmarshal(resp.Data, &repos); err != nil {
 			return nil, fmt.Errorf("error decoding repos list: %w", err)
@@ -89,35 +89,37 @@ func GetRepositoryListWithOptions(
 				}
 			}
 
-			// Build resource
-			var idStr string
+			// Grab the repo name from the raw JSON
+			nameStr, _ := r["name"].(string)
+			if nameStr == "" {
+				continue
+			}
+
+			// Now call GetRepository to get the *final* detail
+			// resourceID can be empty or you can use the raw "id" from r if you like.
+			var resourceID string
 			if idVal, ok := r["id"]; ok {
-				idStr = fmt.Sprintf("%v", idVal)
+				resourceID = fmt.Sprintf("%v", idVal)
 			}
-			var nameStr string
-			if nameVal, ok := r["name"].(string); ok {
-				nameStr = nameVal
+			finalResource, err := GetRepository(
+				ctx,
+				githubClient,
+				organizationName,
+				nameStr,
+				resourceID, // pass along or just ""
+				stream,     // same stream pointer
+			)
+			if err != nil {
+				log.Printf("Error fetching details for %s/%s: %v", organizationName, nameStr, err)
+				continue
 			}
 
-			resource := models.Resource{
-				ID:   idStr,
-				Name: nameStr,
-				Description: JSONAllFieldsMarshaller{
-					// Put entire JSON in Value
-					Value: r,
-				},
-			}
-
-			// Stream if needed
-			if stream != nil {
-				if err := (*stream)(resource); err != nil {
-					return nil, fmt.Errorf("streaming resource failed: %w", err)
+			// Append the final resource from GetRepository into our big slice
+			if finalResource != nil {
+				allFinalResources = append(allFinalResources, *finalResource)
+				if len(allFinalResources) >= MAX_REPOS_TO_LIST {
+					break
 				}
-			}
-
-			allResources = append(allResources, resource)
-			if len(allResources) >= MAX_REPOS_TO_LIST {
-				break
 			}
 		}
 
@@ -128,7 +130,7 @@ func GetRepositoryListWithOptions(
 		page++
 	}
 
-	return allResources, nil
+	return allFinalResources, nil
 }
 
 // GetRepository fetches a single repo, transforms it, fetches languages, enriches metrics, returns a single Resource.
@@ -137,7 +139,7 @@ func GetRepository(
 	githubClient GitHubClient,
 	organizationName string,
 	repositoryName string,
-	resourceID string,
+	resourceID string, // optional
 	stream *models.StreamSender,
 ) (*models.Resource, error) {
 
@@ -171,8 +173,12 @@ func GetRepository(
 	}
 
 	// 5) Build final Resource
+	// If resourceID is empty, use the finalDetail's ID
+	if resourceID == "" {
+		resourceID = strconv.Itoa(finalDetail.GitHubRepoID)
+	}
 	value := models.Resource{
-		ID:   strconv.Itoa(finalDetail.GitHubRepoID),
+		ID:   resourceID,
 		Name: finalDetail.Name,
 		Description: JSONAllFieldsMarshaller{
 			Value: finalDetail,
@@ -194,6 +200,7 @@ func GetRepository(
 
 // -----------------------------------------------------------------------------
 // Utility / helper functions
+// (unchanged from your existing code except for naming and minor comments)
 // -----------------------------------------------------------------------------
 
 func util_fetchRepoDetails(sdk *resilientbridge.ResilientBridge, owner, repo string) (*model.RepoDetail, error) {
