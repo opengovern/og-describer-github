@@ -1,5 +1,3 @@
-// provider\describer\repository.go
-
 package describer
 
 import (
@@ -21,7 +19,6 @@ import (
 const MAX_REPOS_TO_LIST = 250
 
 // GetRepositoryList returns a list of all active (non-archived, non-disabled) repos in the organization.
-// By default, no excludes are applied, so this returns only active repositories.
 func GetRepositoryList(
 	ctx context.Context,
 	githubClient GitHubClient,
@@ -32,9 +29,8 @@ func GetRepositoryList(
 	return GetRepositoryListWithOptions(ctx, githubClient, organizationName, stream, false, false)
 }
 
-// GetRepositoryListWithOptions returns a list of all active repos in the organization with options
-// to exclude archived or disabled. It paginates through the results up to MAX_REPOS_TO_LIST, then
-// places the entire repository JSON as a map[string]interface{} in Resource.Description.Value.
+// GetRepositoryListWithOptions fetches org repositories up to MAX_REPOS_TO_LIST, optionally excluding archived/disabled.
+// The entire JSON for each repository is stored in Resource.Description.Value as a map[string]interface{}.
 func GetRepositoryListWithOptions(
 	ctx context.Context,
 	githubClient GitHubClient,
@@ -71,7 +67,7 @@ func GetRepositoryListWithOptions(
 			return nil, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(resp.Data))
 		}
 
-		// Unmarshal into a slice of map[string]interface{} (the raw GitHub JSON for each repo)
+		// Decode into a slice of map[string]interface{} (the raw JSON).
 		var repos []map[string]interface{}
 		if err := json.Unmarshal(resp.Data, &repos); err != nil {
 			return nil, fmt.Errorf("error decoding repos list: %w", err)
@@ -81,7 +77,7 @@ func GetRepositoryListWithOptions(
 		}
 
 		for _, r := range repos {
-			// Filters
+			// Filter archived, disabled if requested
 			if excludeArchived {
 				if archived, ok := r["archived"].(bool); ok && archived {
 					continue
@@ -93,7 +89,7 @@ func GetRepositoryListWithOptions(
 				}
 			}
 
-			// Extract basic info for Resource ID + Name
+			// Build resource
 			var idStr string
 			if idVal, ok := r["id"]; ok {
 				idStr = fmt.Sprintf("%v", idVal)
@@ -103,12 +99,12 @@ func GetRepositoryListWithOptions(
 				nameStr = nameVal
 			}
 
-			// Put the entire map in Resource.Description.Value
 			resource := models.Resource{
 				ID:   idStr,
 				Name: nameStr,
 				Description: JSONAllFieldsMarshaller{
-					Value: r, // store the entire map, not bytes
+					// Put entire JSON in Value
+					Value: r,
 				},
 			}
 
@@ -126,7 +122,7 @@ func GetRepositoryListWithOptions(
 		}
 
 		if len(repos) < perPage {
-			// no more pages
+			// No more pages
 			break
 		}
 		page++
@@ -135,9 +131,7 @@ func GetRepositoryListWithOptions(
 	return allResources, nil
 }
 
-// GetRepository returns details for a given repo. It fetches from GitHub, transforms into
-// model.RepositoryDescription, fetches languages (LanguageBreakdown), enriches metrics,
-// and returns a single Resource. We store the final struct in Resource.Description.Value.
+// GetRepository fetches a single repo, transforms it, fetches languages, enriches metrics, returns a single Resource.
 func GetRepository(
 	ctx context.Context,
 	githubClient GitHubClient,
@@ -154,39 +148,38 @@ func GetRepository(
 		BaseBackoff:       0,
 	})
 
-	// 1) Fetch a single repo's details
+	// 1) Fetch RepoDetail
 	repoDetail, err := util_fetchRepoDetails(sdk, organizationName, repositoryName)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching repository details for %s/%s: %w",
 			organizationName, repositoryName, err)
 	}
 
-	// 2) Transform to final structure
+	// 2) Transform -> RepositoryDescription
 	finalDetail := util_transformToFinalRepoDetail(repoDetail)
 
-	// 3) Fetch repository languages => returns map[string]int
+	// 3) Fetch /languages => map[string]int
 	langs, err := util_fetchLanguages(sdk, organizationName, repositoryName)
 	if err == nil && len(langs) > 0 {
-		// Store in the final detail as LanguageBreakdown (not the single “language” string).
 		finalDetail.LanguageBreakdown = langs
 	}
 
-	// 4) Enrich repository with metrics (commits, issues, etc.)
+	// 4) Enrich with metrics
 	if err := util_enrichRepoMetrics(sdk, organizationName, repositoryName, finalDetail); err != nil {
 		log.Printf("Error enriching repo metrics for %s/%s: %v",
 			organizationName, repositoryName, err)
 	}
 
-	// 5) Build the final Resource
+	// 5) Build final Resource
 	value := models.Resource{
 		ID:   strconv.Itoa(finalDetail.GitHubRepoID),
 		Name: finalDetail.Name,
 		Description: JSONAllFieldsMarshaller{
-			Value: finalDetail, // store the final struct (model.RepositoryDescription)
+			Value: finalDetail,
 		},
 	}
 
-	// Optionally print to terminal, as in your original example
+	// Optional: print
 	fmt.Println(value)
 
 	// Stream if provided
@@ -200,7 +193,7 @@ func GetRepository(
 }
 
 // -----------------------------------------------------------------------------
-// All utility / helper functions now prefixed `util_`, placed below for clarity
+// Utility / helper functions
 // -----------------------------------------------------------------------------
 
 func util_fetchRepoDetails(sdk *resilientbridge.ResilientBridge, owner, repo string) (*model.RepoDetail, error) {
@@ -224,8 +217,6 @@ func util_fetchRepoDetails(sdk *resilientbridge.ResilientBridge, owner, repo str
 	return &detail, nil
 }
 
-// util_transformToFinalRepoDetail transforms a raw model.RepoDetail into model.RepositoryDescription.
-// Notice how we keep `detail.PrimaryLanguage` as a string, while `LanguageBreakdown` is separate.
 func util_transformToFinalRepoDetail(detail *model.RepoDetail) *model.RepositoryDescription {
 	var parent *model.RepositoryDescription
 	if detail.Parent != nil {
@@ -285,7 +276,7 @@ func util_transformToFinalRepoDetail(detail *model.RepoDetail) *model.Repository
 		IsActive:                isActive,
 		IsEmpty:                 isEmpty,
 		IsFork:                  detail.Fork,
-		IsSecurityPolicyEnabled: false, // default
+		IsSecurityPolicyEnabled: false,
 		Owner:                   finalOwner,
 		HomepageURL:             detail.Homepage,
 		LicenseInfo:             licenseJSON,
@@ -297,12 +288,11 @@ func util_transformToFinalRepoDetail(detail *model.RepoDetail) *model.Repository
 		Parent:                  parent,
 		Source:                  source,
 
-		// The single "primary" language is just a string in the main repo object:
-		// We'll store it in `PrimaryLanguageString` if we want to keep it.
-		// The breakdown is set later.
+		// Single primary language from /repos
 		PrimaryLanguage: detail.PrimaryLanguage,
 
-		LanguageBreakdown: nil, // fetched separately by util_fetchLanguages
+		// We'll fill in LanguageBreakdown after calling /languages
+		LanguageBreakdown: nil,
 
 		RepositorySettings: model.RepositorySettings{
 			HasDiscussionsEnabled:     detail.HasDiscussions,
@@ -358,7 +348,6 @@ func util_transformToFinalRepoDetail(detail *model.RepoDetail) *model.Repository
 	return finalDetail
 }
 
-// util_fetchLanguages fetches repository languages and returns map[string]int (the breakdown).
 func util_fetchLanguages(
 	sdk *resilientbridge.ResilientBridge,
 	owner, repo string,
@@ -384,7 +373,6 @@ func util_fetchLanguages(
 	return langs, nil
 }
 
-// util_enrichRepoMetrics populates metrics (commits, issues, branches, etc.) in finalDetail.
 func util_enrichRepoMetrics(
 	sdk *resilientbridge.ResilientBridge,
 	owner, repoName string,
@@ -441,7 +429,6 @@ func util_enrichRepoMetrics(
 	return nil
 }
 
-// util_countTags counts how many tags the repo has.
 func util_countTags(
 	sdk *resilientbridge.ResilientBridge,
 	owner, repoName string,
@@ -450,7 +437,6 @@ func util_countTags(
 	return util_countItemsFromEndpoint(sdk, endpoint)
 }
 
-// util_countCommits counts how many commits are in the default branch.
 func util_countCommits(
 	sdk *resilientbridge.ResilientBridge,
 	owner, repoName, defaultBranch string,
@@ -459,7 +445,6 @@ func util_countCommits(
 	return util_countItemsFromEndpoint(sdk, endpoint)
 }
 
-// util_countIssues counts how many issues (open, closed, etc.) are in the repo.
 func util_countIssues(
 	sdk *resilientbridge.ResilientBridge,
 	owner, repoName string,
@@ -468,7 +453,6 @@ func util_countIssues(
 	return util_countItemsFromEndpoint(sdk, endpoint)
 }
 
-// util_countBranches counts how many branches the repo has.
 func util_countBranches(
 	sdk *resilientbridge.ResilientBridge,
 	owner, repoName string,
@@ -477,7 +461,6 @@ func util_countBranches(
 	return util_countItemsFromEndpoint(sdk, endpoint)
 }
 
-// util_countPullRequests counts how many PRs (open, closed, merged, etc.) are in the repo.
 func util_countPullRequests(
 	sdk *resilientbridge.ResilientBridge,
 	owner, repoName string,
@@ -486,7 +469,6 @@ func util_countPullRequests(
 	return util_countItemsFromEndpoint(sdk, endpoint)
 }
 
-// util_countReleases counts how many releases the repo has.
 func util_countReleases(
 	sdk *resilientbridge.ResilientBridge,
 	owner, repoName string,
@@ -495,8 +477,6 @@ func util_countReleases(
 	return util_countItemsFromEndpoint(sdk, endpoint)
 }
 
-// util_countItemsFromEndpoint tries to parse the 'Link' header for a "last page" or,
-// if none, uses the length of the returned array.
 func util_countItemsFromEndpoint(
 	sdk *resilientbridge.ResilientBridge,
 	endpoint string,
@@ -511,7 +491,6 @@ func util_countItemsFromEndpoint(
 	if err != nil {
 		return 0, fmt.Errorf("error fetching data: %w", err)
 	}
-	// Some repos return 409 for certain endpoints (e.g. empty repos with no branches).
 	if resp.StatusCode == 409 {
 		return 0, nil
 	}
@@ -519,7 +498,6 @@ func util_countItemsFromEndpoint(
 		return 0, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(resp.Data))
 	}
 
-	// Attempt to parse 'Link' header for last page
 	var linkHeader string
 	for k, v := range resp.Headers {
 		if strings.ToLower(k) == "link" {
@@ -529,11 +507,10 @@ func util_countItemsFromEndpoint(
 	}
 
 	if linkHeader == "" {
-		// If there's no Link header, see if the response is a JSON array
+		// If there's no Link header, see if the response is an array
 		if len(resp.Data) > 2 {
 			var items []interface{}
 			if err := json.Unmarshal(resp.Data, &items); err != nil {
-				// If we can't parse it as array, assume at least 1 item
 				return 1, nil
 			}
 			return len(items), nil
@@ -548,13 +525,10 @@ func util_countItemsFromEndpoint(
 	return lastPage, nil
 }
 
-// util_parseLastPage reads the "last" page link from the Link header
-// (e.g. `rel="last"&page=5`).
 func util_parseLastPage(linkHeader string) (int, error) {
 	re := regexp.MustCompile(`page=(\d+)>; rel="last"`)
 	matches := re.FindStringSubmatch(linkHeader)
 	if len(matches) < 2 {
-		// If no "last" link, assume only 1 page
 		return 1, nil
 	}
 	var lastPage int
