@@ -211,7 +211,7 @@
       ]
     },
     "ListDescriber": "DescribeByGithub(describer.GetRepositoryList)",
-    "GetDescriber": "",
+    "GetDescriber": "DescribeByGithub(describer.GetRepository)",
     "SteampipeTable": "github_repository",
     "Model": "Repository"
   },
