@@ -1,4 +1,3 @@
-// commit.go
 package describer
 
 import (
@@ -44,13 +43,20 @@ func ListCommits(ctx context.Context, githubClient GitHubClient, organizationNam
 // GetRepositoryCommits fetches up to 50 commits for a single repository.
 // If a stream is provided, commits are streamed; otherwise, returns them as a slice.
 func GetRepositoryCommits(ctx context.Context, sdk *resilientbridge.ResilientBridge, stream *models.StreamSender, owner, repo string) ([]models.Resource, error) {
+	// We can tweak this to 50 or 10. Using 10 as your snippet does.
 	maxCommits := 10
 	commits, err := fetchCommitList(sdk, owner, repo, maxCommits)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching commits list for %s/%s: %w", owner, repo, err)
 	}
 
-	// Determine concurrency level from env or default to 5
+	// If zero commits are found, just return an empty slice
+	if len(commits) == 0 {
+		log.Printf("No commits found for %s/%s (possibly empty default branch).", owner, repo)
+		return nil, nil
+	}
+
+	// Determine concurrency level from env or default to 3
 	concurrency := 3
 	if cStr := os.Getenv("CONCURRENCY"); cStr != "" {
 		if cVal, err := strconv.Atoi(cStr); err == nil && cVal > 0 {
@@ -106,6 +112,7 @@ func GetRepositoryCommits(ctx context.Context, sdk *resilientbridge.ResilientBri
 
 	wg.Wait()
 
+	// Stream results if stream is provided
 	if stream != nil {
 		for _, res := range results {
 			if res.ID == "" {
@@ -118,6 +125,7 @@ func GetRepositoryCommits(ctx context.Context, sdk *resilientbridge.ResilientBri
 		return nil, nil
 	}
 
+	// Otherwise, collect and return
 	var finalResults []models.Resource
 	for _, res := range results {
 		if res.ID != "" {
@@ -127,6 +135,7 @@ func GetRepositoryCommits(ctx context.Context, sdk *resilientbridge.ResilientBri
 	return finalResults, nil
 }
 
+// commitRef is a minimal struct with just the commit SHA
 type commitRef struct {
 	SHA string `json:"sha"`
 }
@@ -155,10 +164,10 @@ func fetchCommitList(sdk *resilientbridge.ResilientBridge, owner, repo string, m
 			return nil, fmt.Errorf("error fetching commits: %w", err)
 		}
 
-		// Handle HTTP errors
+		// If GitHub returns 409, it generally means an empty default branch or no commits
 		if resp.StatusCode == 409 {
-			// 409 typically means no commits on default branch or empty repo
-			// Treat this as no commits found.
+			// We'll just return an empty slice (no error).
+			log.Printf("409 Conflict returned. No commits or empty repo: %s/%s", owner, repo)
 			return []commitRef{}, nil
 		}
 		if resp.StatusCode >= 400 {
@@ -189,6 +198,7 @@ func fetchCommitList(sdk *resilientbridge.ResilientBridge, owner, repo string, m
 	return allCommits, nil
 }
 
+// fetchCommitDetails fetches a single commit's detailed JSON data.
 func fetchCommitDetails(sdk *resilientbridge.ResilientBridge, owner, repo, sha string) ([]byte, error) {
 	req := &resilientbridge.NormalizedRequest{
 		Method:   "GET",
@@ -202,10 +212,10 @@ func fetchCommitDetails(sdk *resilientbridge.ResilientBridge, owner, repo, sha s
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(resp.Data))
 	}
-
 	return resp.Data, nil
 }
 
+// newResilientSDK creates a new ResilientBridge instance with the GitHub adapter.
 func newResilientSDK(token string) *resilientbridge.ResilientBridge {
 	sdk := resilientbridge.NewResilientBridge()
 	sdk.RegisterProvider("github", adapters.NewGitHubAdapter(token), &resilientbridge.ProviderConfig{

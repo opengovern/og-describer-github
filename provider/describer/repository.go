@@ -1,3 +1,5 @@
+// provider\describer\repository.go
+
 package describer
 
 import (
@@ -15,7 +17,7 @@ import (
 	"github.com/opengovern/resilient-bridge/adapters"
 )
 
-// MAX_REPO as requested
+// MAX_REPOS_TO_LIST is how many repositories to fetch at most when listing.
 const MAX_REPOS_TO_LIST = 250
 
 // GetRepositoryList returns a list of all active (non-archived, non-disabled) repos in the organization.
@@ -31,7 +33,7 @@ func GetRepositoryList(
 }
 
 // GetRepositoryListWithOptions returns a list of all active repos in the organization with options
-// to exclude archived or disabled. It paginates through the results up to MAX_REPO, then
+// to exclude archived or disabled. It paginates through the results up to MAX_REPOS_TO_LIST, then
 // places the entire repository JSON as a map[string]interface{} in Resource.Description.Value.
 func GetRepositoryListWithOptions(
 	ctx context.Context,
@@ -134,9 +136,8 @@ func GetRepositoryListWithOptions(
 }
 
 // GetRepository returns details for a given repo. It fetches from GitHub, transforms into
-// model.RepositoryDescription, fetches languages, enriches metrics, then returns a single Resource.
-// We store the final struct (not a string) in Resource.Description.Value, so downstream code can
-// re-marshal it as needed.
+// model.RepositoryDescription, fetches languages (LanguageBreakdown), enriches metrics,
+// and returns a single Resource. We store the final struct in Resource.Description.Value.
 func GetRepository(
 	ctx context.Context,
 	githubClient GitHubClient,
@@ -163,13 +164,14 @@ func GetRepository(
 	// 2) Transform to final structure
 	finalDetail := util_transformToFinalRepoDetail(repoDetail)
 
-	// 3) Fetch repository languages
+	// 3) Fetch repository languages => returns map[string]int
 	langs, err := util_fetchLanguages(sdk, organizationName, repositoryName)
 	if err == nil && len(langs) > 0 {
-		finalDetail.Languages = langs
+		// Store in the final detail as LanguageBreakdown (not the single “language” string).
+		finalDetail.LanguageBreakdown = langs
 	}
 
-	// 4) Enrich repository with metrics
+	// 4) Enrich repository with metrics (commits, issues, etc.)
 	if err := util_enrichRepoMetrics(sdk, organizationName, repositoryName, finalDetail); err != nil {
 		log.Printf("Error enriching repo metrics for %s/%s: %v",
 			organizationName, repositoryName, err)
@@ -180,12 +182,11 @@ func GetRepository(
 		ID:   strconv.Itoa(finalDetail.GitHubRepoID),
 		Name: finalDetail.Name,
 		Description: JSONAllFieldsMarshaller{
-			// Store the final struct (model.RepositoryDescription) directly
-			Value: finalDetail,
+			Value: finalDetail, // store the final struct (model.RepositoryDescription)
 		},
 	}
 
-	// Print to terminal, as in your original example
+	// Optionally print to terminal, as in your original example
 	fmt.Println(value)
 
 	// Stream if provided
@@ -199,8 +200,7 @@ func GetRepository(
 }
 
 // -----------------------------------------------------------------------------
-// All utility / helper functions now prefixed `util_` and remain otherwise
-// the same. They can go into the same file or a separate `util.go` file.
+// All utility / helper functions now prefixed `util_`, placed below for clarity
 // -----------------------------------------------------------------------------
 
 func util_fetchRepoDetails(sdk *resilientbridge.ResilientBridge, owner, repo string) (*model.RepoDetail, error) {
@@ -225,6 +225,7 @@ func util_fetchRepoDetails(sdk *resilientbridge.ResilientBridge, owner, repo str
 }
 
 // util_transformToFinalRepoDetail transforms a raw model.RepoDetail into model.RepositoryDescription.
+// Notice how we keep `detail.PrimaryLanguage` as a string, while `LanguageBreakdown` is separate.
 func util_transformToFinalRepoDetail(detail *model.RepoDetail) *model.RepositoryDescription {
 	var parent *model.RepositoryDescription
 	if detail.Parent != nil {
@@ -295,7 +296,14 @@ func util_transformToFinalRepoDetail(detail *model.RepoDetail) *model.Repository
 		Organization:            finalOrg,
 		Parent:                  parent,
 		Source:                  source,
-		Languages:               nil, // set by util_fetchLanguages
+
+		// The single "primary" language is just a string in the main repo object:
+		// We'll store it in `PrimaryLanguageString` if we want to keep it.
+		// The breakdown is set later.
+		PrimaryLanguage: detail.PrimaryLanguage,
+
+		LanguageBreakdown: nil, // fetched separately by util_fetchLanguages
+
 		RepositorySettings: model.RepositorySettings{
 			HasDiscussionsEnabled:     detail.HasDiscussions,
 			HasIssuesEnabled:          detail.HasIssues,
@@ -350,7 +358,7 @@ func util_transformToFinalRepoDetail(detail *model.RepoDetail) *model.Repository
 	return finalDetail
 }
 
-// util_fetchLanguages fetches repository languages and returns map[string]int.
+// util_fetchLanguages fetches repository languages and returns map[string]int (the breakdown).
 func util_fetchLanguages(
 	sdk *resilientbridge.ResilientBridge,
 	owner, repo string,
@@ -487,7 +495,8 @@ func util_countReleases(
 	return util_countItemsFromEndpoint(sdk, endpoint)
 }
 
-// util_countItemsFromEndpoint tries to parse the 'Link' header for a "last page" or, if none, uses the length of the returned array.
+// util_countItemsFromEndpoint tries to parse the 'Link' header for a "last page" or,
+// if none, uses the length of the returned array.
 func util_countItemsFromEndpoint(
 	sdk *resilientbridge.ResilientBridge,
 	endpoint string,
@@ -539,7 +548,8 @@ func util_countItemsFromEndpoint(
 	return lastPage, nil
 }
 
-// util_parseLastPage reads the "last" page link from the Link header (e.g. `rel="last"&page=5`).
+// util_parseLastPage reads the "last" page link from the Link header
+// (e.g. `rel="last"&page=5`).
 func util_parseLastPage(linkHeader string) (int, error) {
 	re := regexp.MustCompile(`page=(\d+)>; rel="last"`)
 	matches := re.FindStringSubmatch(linkHeader)

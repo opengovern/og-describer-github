@@ -2,6 +2,7 @@
 
 // Implement types for each resource
 
+// provider\model\model.go
 package model
 
 import (
@@ -502,27 +503,32 @@ type StatusObj struct {
 }
 
 type RepoDetail struct {
-	ID                        int                    `json:"id"`
-	NodeID                    string                 `json:"node_id"`
-	Name                      string                 `json:"name"`
-	FullName                  string                 `json:"full_name"`
-	Private                   bool                   `json:"private"`
-	Owner                     *Owner                 `json:"owner"`
-	HTMLURL                   string                 `json:"html_url"`
-	Description               *string                `json:"description"`
-	Fork                      bool                   `json:"fork"`
-	CreatedAt                 string                 `json:"created_at"`
-	UpdatedAt                 string                 `json:"updated_at"`
-	PushedAt                  string                 `json:"pushed_at"`
-	GitURL                    string                 `json:"git_url"`
-	SSHURL                    string                 `json:"ssh_url"`
-	CloneURL                  string                 `json:"clone_url"`
-	SVNURL                    string                 `json:"svn_url"`
-	Homepage                  *string                `json:"homepage"`
-	Size                      int                    `json:"size"`
-	StargazersCount           int                    `json:"stargazers_count"`
-	WatchersCount             int                    `json:"watchers_count"`
-	Languages                 *string                `json:"languages"` // original string language field
+	ID              int     `json:"id"`
+	NodeID          string  `json:"node_id"`
+	Name            string  `json:"name"`
+	FullName        string  `json:"full_name"`
+	Private         bool    `json:"private"`
+	Owner           *Owner  `json:"owner"`
+	HTMLURL         string  `json:"html_url"`
+	Description     *string `json:"description"`
+	Fork            bool    `json:"fork"`
+	CreatedAt       string  `json:"created_at"`
+	UpdatedAt       string  `json:"updated_at"`
+	PushedAt        string  `json:"pushed_at"`
+	GitURL          string  `json:"git_url"`
+	SSHURL          string  `json:"ssh_url"`
+	CloneURL        string  `json:"clone_url"`
+	SVNURL          string  `json:"svn_url"`
+	Homepage        *string `json:"homepage"`
+	Size            int     `json:"size"`
+	StargazersCount int     `json:"stargazers_count"`
+	WatchersCount   int     `json:"watchers_count"`
+
+	// 1) The single “primary” language returned by the main /repos/:owner/:repo call
+	PrimaryLanguage *string `json:"language"`
+	// If you want to store the breakdown from /languages in the same struct, you can do:
+	LanguageBreakdown map[string]int `json:"-"`
+
 	HasIssues                 bool                   `json:"has_issues"`
 	HasProjects               bool                   `json:"has_projects"`
 	HasDownloads              bool                   `json:"has_downloads"`
@@ -674,7 +680,8 @@ type RepositoryDescription struct {
 	Organization            *Organization          `json:"organization"`
 	Parent                  *RepositoryDescription `json:"parent"`
 	Source                  *RepositoryDescription `json:"source"`
-	Languages               map[string]int         `json:"language"`
+	PrimaryLanguage         *string                `json:"primary_language,omitempty"`
+	LanguageBreakdown       map[string]int         `json:"language_breakdown,omitempty"`
 	RepositorySettings      RepositorySettings     `json:"repo_settings"`
 	SecuritySettings        SecuritySettings       `json:"security_settings"`
 	RepoURLs                RepoURLs               `json:"repo_urls"`
