@@ -1,4 +1,4 @@
-// describer.go
+// command\cmd\describer.go
 package cmd
 
 import (
@@ -108,7 +108,7 @@ var describerCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("unmarshal description: %v", err.Error())
 			}
-			fmt.Println(desc)
+			//fmt.Println(desc)
 
 			if plg != nil {
 				_, _, err = steampipe.ExtractTagsAndNames(logger, plg, job.ResourceType, resource)
@@ -139,6 +139,7 @@ var describerCmd = &cobra.Command{
 
 			// Write the resource JSON to the file
 			resJSON, err := json.Marshal(res)
+			println(resJSON)
 			if err != nil {
 				return fmt.Errorf("failed to marshal resource JSON: %w", err)
 			}

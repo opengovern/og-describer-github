@@ -18,7 +18,7 @@ import (
 // MAX_REPOS_TO_LIST is how many repositories to fetch at most when listing.
 const MAX_REPOS_TO_LIST = 250
 
-// GetRepositoryList returns a list of all active (non-archived, non-disabled) repos in the organization.
+// GetRepositoryList returns a list of all repos in the organization.
 func GetRepositoryList(
 	ctx context.Context,
 	githubClient GitHubClient,
