@@ -101,16 +101,16 @@ func GetRepositoryListWithOptions(
 			}
 
 			// Marshal the entire repo object back into JSON for Description
-			rawData, err := json.Marshal(r)
-			if err != nil {
-				return nil, fmt.Errorf("error marshalling repo data: %w", err)
-			}
+			// rawData, err := json.Marshal(r)
+			// if err != nil {
+			// 	return nil, fmt.Errorf("error marshalling repo data: %w", err)
+			// }
 
 			resource := models.Resource{
 				ID:   idStr,
 				Name: nameStr,
 				Description: JSONAllFieldsMarshaller{
-					Value: rawData,
+					Value: r,
 				},
 			}
 
