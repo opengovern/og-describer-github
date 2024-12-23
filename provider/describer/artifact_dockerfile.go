@@ -45,7 +45,7 @@ func ListArtifactDockerFiles(
 	}
 
 	repo := ctx.Value("repository")
-	
+
 	if repo != nil {
 		repoName := repo.(string)
 		if repoName != "" {
@@ -142,11 +142,6 @@ func ListArtifactDockerFiles(
 			}
 			page++
 		}
-	}
-
-	// If we streamed, return an empty slice since results are already sent via stream
-	if stream != nil {
-		return []models.Resource{}, nil
 	}
 
 	return allValues, nil
