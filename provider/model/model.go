@@ -101,43 +101,6 @@ type ArtifactsResponse struct {
 	Artifacts  []WorkflowArtifact `json:"artifacts"`
 }
 
-//type WorkflowRunDescription struct {
-//	ID                 int64
-//	Name               string
-//	NodeID             string
-//	HeadBranch         string
-//	HeadSHA            string
-//	RunNumber          int
-//	RunAttempt         int
-//	Event              string
-//	DisplayTitle       string
-//	Status             string
-//	Conclusion         string
-//	WorkflowID         int64
-//	CheckSuiteID       int64
-//	CheckSuiteNodeID   string
-//	URL                string
-//	HTMLURL            string
-//	PullRequests       []*github.PullRequest
-//	CreatedAt          github.Timestamp
-//	UpdatedAt          github.Timestamp
-//	RunStartedAt       github.Timestamp
-//	JobsURL            string
-//	LogsURL            string
-//	CheckSuiteURL      string
-//	ArtifactsURL       string
-//	CancelURL          string
-//	RerunURL           string
-//	PreviousAttemptURL string
-//	HeadCommit         *github.HeadCommit
-//	WorkflowURL        string
-//	Repository         *github.Repository
-//	HeadRepository     *github.Repository
-//	Actor              *github.User
-//	TriggeringActor    *github.User
-//	RepoFullName       string
-//}
-
 type AuditLogDescription struct {
 	ID            string
 	CreatedAt     github.Timestamp
@@ -196,35 +159,6 @@ type BranchProtectionDescription struct {
 	BypassPullRequestAllowanceTeams []BranchTeam
 	BypassPullRequestAllowanceUsers []BranchUser
 }
-
-//type Parents []struct {
-//	SHA string `json:"sha"`
-//}
-
-//type VerificationDetails struct {
-//	Reason     string  `json:"reason"`
-//	Signature  *string `json:"signature"`
-//	VerifiedAt *string `json:"verified_at"`
-//}
-
-//type AdditionalDetails struct {
-//	NodeID              string              `json:"node_id"`
-//	Parents             Parents             `json:"parents"`
-//	Tree                Tree                `json:"tree"`
-//	VerificationDetails VerificationDetails `json:"verification_details"`
-//}
-
-//type UserMinimalInfo struct {
-//	Name  string `json:"name"`
-//	Email string `json:"email"`
-//	Date  string `json:"date"`
-//}
-
-//type Changes struct {
-//	Additions int `json:"additions"`
-//	Deletions int `json:"deletions"`
-//	Total     int `json:"total"`
-//}
 
 type Tree struct {
 	SHA string `json:"sha"`
@@ -315,21 +249,6 @@ type CommitDescription struct {
 	Stats        Stats        `json:"stats"`
 	Files        []File       `json:"files"`
 }
-
-//type CommitDescription struct {
-//	AdditionalDetails AdditionalDetails `json:"additional_details"`
-//	Author            Author            `json:"author"`
-//	Changes           Changes           `json:"changes"`
-//	CommentCount      int               `json:"comment_count"`
-//	Date              string            `json:"date"`
-//	Files             []File            `json:"files"`
-//	HTMLURL           string            `json:"html_url"`
-//	ID                string            `json:"id"`
-//	IsVerified        bool              `json:"is_verified"`
-//	Message           string            `json:"message"`
-//	PullRequests      []int             `json:"pull_requests"`
-//	Target            Target            `json:"target"`
-//}
 
 type IssueDescription struct {
 	RepositoryFullName      string
@@ -722,118 +641,6 @@ type Metrics struct {
 	PullRequests int `json:"pull_requests"`
 	Releases     int `json:"releases"`
 }
-
-//type RepositoryResponse struct {
-//	ID                       float64                      `json:"id"`
-//	NodeID                   string                       `json:"node_id"`
-//	Name                     string                       `json:"name"`
-//	NameWithOwner            string                       `json:"name_with_owner"`
-//	Description              *string                      `json:"description"`
-//	Private                  bool                         `json:"private"`
-//	HTMLURL                  string                       `json:"html_url"`
-//	Fork                     bool                         `json:"fork"`
-//	URL                      string                       `json:"url"`
-//	CloneURL                 string                       `json:"clone_url"`
-//	GitURL                   string                       `json:"git_url"`
-//	SSHURL                   string                       `json:"ssh_url"`
-//	Homepage                 *string                      `json:"homepage"`
-//	Language                 string                       `json:"language"`
-//	ForksCount               int                          `json:"forks_count"`
-//	StargazersCount          int                          `json:"stargazers_count"`
-//	WatchersCount            int                          `json:"watchers_count"`
-//	Size                     int                          `json:"size"`
-//	DefaultBranch            string                       `json:"default_branch"`
-//	OpenIssuesCount          int                          `json:"open_issues_count"`
-//	Topics                   []string                     `json:"topics"`
-//	HasIssues                bool                         `json:"has_issues"`
-//	HasProjects              bool                         `json:"has_projects"`
-//	HasWiki                  bool                         `json:"has_wiki"`
-//	HasPages                 bool                         `json:"has_pages"`
-//	HasDownloads             bool                         `json:"has_downloads"`
-//	HasDiscussions           bool                         `json:"has_discussions"`
-//	Archived                 bool                         `json:"archived"`
-//	Disabled                 bool                         `json:"disabled"`
-//	Visibility               string                       `json:"visibility"`
-//	PushedAt                 string                       `json:"pushed_at"`
-//	CreatedAt                string                       `json:"created_at"`
-//	UpdatedAt                string                       `json:"updated_at"`
-//	AllowForking             bool                         `json:"allow_forking"`
-//	WebCommitSignoffRequired bool                         `json:"web_commit_signoff_required"`
-//	ContentsURL              string                       `json:"contents_url"`
-//	PullsURL                 string                       `json:"pulls_url"`
-//	CommitsURL               string                       `json:"commits_url"`
-//	CompareURL               string                       `json:"compare_url"`
-//	DownloadsURL             string                       `json:"downloads_url"`
-//	ArchiveURL               string                       `json:"archive_url"`
-//	AssigneesURL             string                       `json:"assignees_url"`
-//	BlobsURL                 string                       `json:"blobs_url"`
-//	BranchesURL              string                       `json:"branches_url"`
-//	CollaboratorsURL         string                       `json:"collaborators_url"`
-//	CommentsURL              string                       `json:"comments_url"`
-//	ContributorsURL          string                       `json:"contributors_url"`
-//	DeploymentsURL           string                       `json:"deployments_url"`
-//	EventsURL                string                       `json:"events_url"`
-//	ForksURL                 string                       `json:"forks_url"`
-//	GitCommitsURL            string                       `json:"git_commits_url"`
-//	GitRefsURL               string                       `json:"git_refs_url"`
-//	GitTagsURL               string                       `json:"git_tags_url"`
-//	HooksURL                 string                       `json:"hooks_url"`
-//	IssueCommentURL          string                       `json:"issue_comment_url"`
-//	IssueEventsURL           string                       `json:"issue_events_url"`
-//	IssuesURL                string                       `json:"issues_url"`
-//	KeysURL                  string                       `json:"keys_url"`
-//	LabelsURL                string                       `json:"labels_url"`
-//	LanguagesURL             string                       `json:"languages_url"`
-//	MergesURL                string                       `json:"merges_url"`
-//	MilestonesURL            string                       `json:"milestones_url"`
-//	NotificationsURL         string                       `json:"notifications_url"`
-//	ReleasesURL              string                       `json:"releases_url"`
-//	StargazersURL            string                       `json:"stargazers_url"`
-//	StatusesURL              string                       `json:"statuses_url"`
-//	SubscribersURL           string                       `json:"subscribers_url"`
-//	SubscriptionURL          string                       `json:"subscription_url"`
-//	TagsURL                  string                       `json:"tags_url"`
-//	TeamsURL                 string                       `json:"teams_url"`
-//	TreesURL                 string                       `json:"trees_url"`
-//	Watchers                 int                          `json:"watchers"`
-//	IsTemplate               bool                         `json:"is_template"`
-//	SecurityAndAnalysis      map[string]map[string]string `json:"security_and_analysis"`
-//	Permissions              map[string]bool              `json:"permissions"`
-//	Owner                    RepoOwner                    `json:"owner"`
-//}
-//
-//type RepoOwner struct {
-//	Login             string `json:"login"`
-//	ID                int64  `json:"id"`
-//	NodeID            string `json:"node_id"`
-//	AvatarURL         string `json:"avatar_url"`
-//	GravatarID        string `json:"gravatar_id"`
-//	URL               string `json:"url"`
-//	HTMLURL           string `json:"html_url"`
-//	FollowersURL      string `json:"followers_url"`
-//	FollowingURL      string `json:"following_url"`
-//	GistsURL          string `json:"gists_url"`
-//	StarredURL        string `json:"starred_url"`
-//	SubscriptionsURL  string `json:"subscriptions_url"`
-//	OrganizationsURL  string `json:"organizations_url"`
-//	ReposURL          string `json:"repos_url"`
-//	EventsURL         string `json:"events_url"`
-//	ReceivedEventsURL string `json:"received_events_url"`
-//	Type              string `json:"type"`
-//	SiteAdmin         bool   `json:"site_admin"`
-//}
-//
-//type LicenseInfo struct {
-//	Key    string `json:"key"`
-//	Name   string `json:"name"`
-//	SPDXID string `json:"spdx_id"`
-//	URL    string `json:"url"`
-//	NodeID string `json:"node_id"`
-//}
-//
-//type DefaultBranchRef struct {
-//	Name string `json:"name"`
-//}
 
 type RepositoryDescription struct {
 	GitHubRepoID            int                    `json:"id"`
@@ -1336,4 +1143,5 @@ type ArtifactDockerFileDescription struct {
 	DockerfileContent       string                 `json:"dockerfile_content"`
 	DockerfileContentBase64 string                 `json:"dockerfile_content_base64"`
 	Repository              map[string]interface{} `json:"repository"`
+	Images                  []string               `json:"images"`
 }
