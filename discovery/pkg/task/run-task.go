@@ -212,6 +212,10 @@ func (tr *TaskRunner) describeIntegrationResourceTypes(ctx context.Context, i In
 			return marshalErr
 		}
 		msgId := fmt.Sprintf("task-run-result-%d-%d", tr.request.TaskDefinition.RunID, time.Now().Unix())
+		tr.logger.Info("Publishing intermediate progress",
+			zap.String("msgId", msgId),
+			zap.Int("resultSize", len(responseJson)), // Log size
+			zap.String("status", string(tr.response.Status)))
 		if _, err = tr.jq.Produce(ctx, envs.ResultTopicName, responseJson, msgId); err != nil { // Use original ctx
 			tr.logger.Error("failed to publish initial InProgress job status", zap.String("response", string(responseJson)), zap.Error(err))
 			return err
