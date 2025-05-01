@@ -211,7 +211,7 @@ func (tr *TaskRunner) describeIntegrationResourceTypes(ctx context.Context, i In
 			tr.logger.Error("failed to create final job result json", zap.Error(marshalErr))
 			return marshalErr
 		}
-		msgId := fmt.Sprintf("task-run-result-%d", tr.request.TaskDefinition.RunID)
+		msgId := fmt.Sprintf("task-run-result-%d-%d", tr.request.TaskDefinition.RunID, time.Now().Unix())
 		if _, err = tr.jq.Produce(ctx, envs.ResultTopicName, responseJson, msgId); err != nil { // Use original ctx
 			tr.logger.Error("failed to publish initial InProgress job status", zap.String("response", string(responseJson)), zap.Error(err))
 			return err
