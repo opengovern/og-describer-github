@@ -65,126 +65,49 @@ func NewWorker(
 	return w, nil
 }
 
-func (w *Worker) Run(ctx context.Context, idleTimeout time.Duration) error {
-	w.logger.Info("Starting Run loop",
-		zap.String("nats_consumer", envs.NatsConsumer),
-		zap.String("stream", envs.StreamName),
-		zap.String("topic", envs.TopicName),
-		zap.Duration("idleTimeout", idleTimeout))
+func (w *Worker) Run(ctx context.Context) error {
+	w.logger.Info("starting to consume", zap.String("url", envs.NatsURL), zap.String("consumer", envs.NatsConsumer),
+		zap.String("stream", envs.StreamName), zap.String("topic", envs.TopicName))
 
-	idleTimer := time.NewTimer(idleTimeout)
+	consumeCtx, err := w.jq.ConsumeWithConfig(ctx, envs.NatsConsumer, envs.StreamName, []string{envs.TopicName}, jetstream.ConsumerConfig{
+		Replicas:          1,
+		AckPolicy:         jetstream.AckExplicitPolicy,
+		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		MaxAckPending:     -1,
+		AckWait:           time.Minute * 30,
+		InactiveThreshold: time.Hour,
+	}, []jetstream.PullConsumeOpt{
+		jetstream.PullMaxMessages(1),
+	}, func(msg jetstream.Msg) {
+		w.logger.Info("received a new job")
 
-	if !idleTimer.Stop() {
-		select {
-		case <-idleTimer.C:
-		default:
+		err := w.ProcessMessage(ctx, msg)
+		if err != nil {
+			// Log error from ProcessMessage itself (e.g., initial setup failure)
+			// Note: Errors during task.RunTask are handled within ProcessMessage's defer
+			w.logger.Error("failed during message processing setup", zap.Error(err))
 		}
-	}
-	idleTimer.Reset(idleTimeout)
 
-	var consumer jetstream.ConsumeContext
-
-	consumerCtx, cancelConsumer := context.WithCancel(ctx)
-	defer cancelConsumer()
-
-	consumerErrChan := make(chan error, 1)
-	activityChan := make(chan struct{}, 1)
-
-	go func() {
-		var consErr error
-		consumer, consErr = w.jq.ConsumeWithConfig(
-			consumerCtx,
-			envs.NatsConsumer,
-			envs.StreamName,
-			[]string{envs.TopicName},
-			jetstream.ConsumerConfig{
-				Replicas:          1,
-				AckPolicy:         jetstream.AckExplicitPolicy,
-				DeliverPolicy:     jetstream.DeliverAllPolicy,
-				MaxAckPending:     -1,
-				AckWait:           time.Minute * 30,
-				InactiveThreshold: time.Hour,
-			},
-			[]jetstream.PullConsumeOpt{
-				jetstream.PullMaxMessages(1), // Process one message at a time
-			},
-			func(msg jetstream.Msg) {
-				w.logger.Info("Received a new job")
-				err := w.ProcessMessage(consumerCtx, msg)
-				if err != nil {
-					w.logger.Error("Failed during message processing", zap.Error(err))
-				}
-
-				if ackErr := msg.Ack(); ackErr != nil {
-					w.logger.Error("Failed to send the ack message", zap.Error(ackErr))
-
-				} else {
-					w.logger.Info("Message Ack'd successfully.")
-				}
-
-				w.logger.Info("Processing a job completed, signaling activity.")
-
-				select {
-				case activityChan <- struct{}{}:
-				default:
-					w.logger.Warn("Activity channel buffer full?")
-				}
-			})
-
-		consumerErrChan <- consErr
-
-		<-consumerCtx.Done()
-		w.logger.Info("Consumer goroutine exiting.")
-
-	}()
-
-	setupErr := <-consumerErrChan
-	if setupErr != nil {
-		w.logger.Error("Failed to start NATS consumer", zap.Error(setupErr))
-		if !idleTimer.Stop() {
-			select {
-			case <-idleTimer.C:
-			default:
-			}
+		// Ack is always sent by Run after ProcessMessage finishes or fails setup
+		if ackErr := msg.Ack(); ackErr != nil {
+			w.logger.Error("failed to send the ack message", zap.Error(ackErr))
 		}
-		return setupErr
+
+		w.logger.Info("processing a job completed")
+	})
+	if err != nil {
+		w.logger.Error("failed to start consuming messages", zap.Error(err))
+		return err
 	}
 
-	w.logger.Info("NATS consumer started successfully. Waiting for messages or idle timeout...")
+	w.logger.Info("consuming messages...")
 
-	for {
-		select {
-		case <-ctx.Done():
-			w.logger.Info("Worker Run context cancelled. Initiating shutdown.")
-			cancelConsumer()
-			if consumer != nil {
-				w.logger.Info("Draining consumer due to context cancellation...")
-				consumer.Drain()
-				w.logger.Info("Consumer drained.")
-			}
-			return ctx.Err()
+	<-ctx.Done()
+	w.logger.Info("Main context cancelled, draining consumer...")
+	consumeCtx.Drain()
+	w.logger.Info("Consumer stopped.")
 
-		case <-activityChan:
-			w.logger.Debug("Activity detected, resetting idle timer.")
-			if !idleTimer.Stop() {
-				select {
-				case <-idleTimer.C:
-				default:
-				}
-			}
-			idleTimer.Reset(idleTimeout)
-
-		case <-idleTimer.C:
-			w.logger.Info("Idle timeout reached. Initiating shutdown.")
-			cancelConsumer()
-			if consumer != nil {
-				w.logger.Info("Draining consumer due to idle timeout...")
-				consumer.Drain()
-				w.logger.Info("Consumer drained.")
-			}
-			return nil
-		}
-	}
+	return nil
 }
 
 func (w *Worker) ProcessMessage(ctx context.Context, msg jetstream.Msg) (err error) {
