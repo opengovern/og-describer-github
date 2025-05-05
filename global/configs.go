@@ -9,5 +9,6 @@ const (
 )
 
 type IntegrationCredentials struct {
-	PatToken string `json:"pat_token"`
+	PatToken         string `json:"pat_token"`
+	OrganizationName string `json:"organization_name"`
 }

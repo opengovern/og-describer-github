@@ -59,7 +59,8 @@ func (i *Integration) DiscoverIntegrations(jsonData []byte) ([]integration.Integ
 	}
 	var integrations []integration.Integration
 	accounts, err := GithubIntegrationDiscovery(Config{
-		Token: credentials.PatToken,
+		Token:            credentials.PatToken,
+		OrganizationName: credentials.OrganizationName,
 	})
 	if err != nil {
 		return nil, err
@@ -87,18 +88,18 @@ func (i *Integration) DiscoverIntegrations(jsonData []byte) ([]integration.Integ
 }
 
 func (i *Integration) GetResourceTypesByLabels(labels map[string]string) ([]interfaces.ResourceTypeConfiguration, error) {
-	var resourceTypesMap  []interfaces.ResourceTypeConfiguration
+	var resourceTypesMap []interfaces.ResourceTypeConfiguration
 	for _, resourceType := range maps.ResourceTypesList {
-		var resource  interfaces.ResourceTypeConfiguration
+		var resource interfaces.ResourceTypeConfiguration
 		if v, ok := maps.ResourceTypeConfigs[resourceType]; ok {
-			resource.Description =v.Description
-			resource.Params =v.Params
+			resource.Description = v.Description
+			resource.Params = v.Params
 			resource.Name = v.Name
 			resource.IntegrationType = v.IntegrationType
-			resource.Table =  maps.ResourceTypesToTables[v.Name]
+			resource.Table = maps.ResourceTypesToTables[v.Name]
 			resourceTypesMap = append(resourceTypesMap, resource)
-			
-		} 
+
+		}
 	}
 	return resourceTypesMap, nil
 }

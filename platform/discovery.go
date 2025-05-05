@@ -131,6 +131,9 @@ func GithubIntegrationDiscovery(cfg Config) ([]OrgDetail, error) {
 	// Prepare the minimal organization information
 	var detailedOrgs []OrgDetail
 	for _, org := range orgs {
+		if org.Login == nil || *org.Login == "" || *org.Login != cfg.OrganizationName {
+			continue
+		}
 		detail := OrgDetail{
 			Login: safeString(org.Login),
 			ID:    safeInt64(org.ID),
